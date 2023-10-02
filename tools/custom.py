@@ -12,37 +12,38 @@ import models
 import torch
 import torch.nn.functional as F
 from PIL import Image
+from time import time
 
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 
-color_map = [(128, 64,128),
-             (244, 35,232),
-             ( 70, 70, 70),
-             (102,102,156),
-             (190,153,153),
-             (153,153,153),
-             (250,170, 30),
-             (220,220,  0),
-             (107,142, 35),
-             (152,251,152),
-             ( 70,130,180),
-             (220, 20, 60),
-             (255,  0,  0),
-             (  0,  0,142),
-             (  0,  0, 70),
-             (  0, 60,100),
-             (  0, 80,100),
-             (  0,  0,230),
-             (119, 11, 32)]
+color_map = [(128, 64,128), #Ground 
+             (244, 35,232), #Road
+             ( 70, 70, 70), #Building CHECK
+             (102,102,156), #Wall
+             (190,153,153), #Glass
+             (153,153,153), #Lightpoles CHECK
+             (250,170, 30), #Light street CHECK
+             (220,220,  0), #Street sign CHECK
+             (107,142, 35), #Tree CHECK
+             (152,251,152), #Grass
+             ( 70,130,180), #Sky
+             (220, 20, 60), #Personas
+             (255,  0,  0), #???
+             (  0,  0,142), #Cars
+             (  0,  0, 70), #Buses
+             (  0, 60,100), #Mirror
+             (  0, 80,100), #?
+             (  0,  0,230), #?
+             (119, 11, 32)] #?
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Custom Input')
     
-    parser.add_argument('--a', help='pidnet-s, pidnet-m or pidnet-l', default='pidnet-l', type=str)
+    parser.add_argument('--a', help='pidnet-s, pidnet-m or pidnet-l', default='pidnet-s', type=str)
     parser.add_argument('--c', help='cityscapes pretrained or not', type=bool, default=True)
-    parser.add_argument('--p', help='dir for pretrained model', default='../pretrained_models/cityscapes/PIDNet_L_Cityscapes_test.pt', type=str)
-    parser.add_argument('--r', help='root or dir for input images', default='../samples/', type=str)
+    parser.add_argument('--p', help='dir for pretrained model', default='/home/marcelo/Documentos/NODElab/DNN/Semantic_seg/PIDNet/pretrained_models/cityscapes/PIDNet_S_Cityscapes_val.pt', type=str)
+    parser.add_argument('--r', help='root or dir for input images', default='/home/marcelo/Documentos/NODElab/DNN/Semantic_seg/PIDNet/samples/', type=str)
     parser.add_argument('--t', help='the format of input images (.jpg, .png, ...)', default='.png', type=str)     
 
     args = parser.parse_args()
@@ -81,9 +82,10 @@ if __name__ == '__main__':
     model.eval()
     with torch.no_grad():
         for img_path in images_list:
-            img_name = img_path.split("\\")[-1]
+            img_name = img_path.split("/")[-1]
             img = cv2.imread(os.path.join(args.r, img_name),
                                cv2.IMREAD_COLOR)
+            start = time()
             sv_img = np.zeros_like(img).astype(np.uint8)
             img = input_transform(img)
             img = img.transpose((2, 0, 1)).copy()
@@ -95,12 +97,19 @@ if __name__ == '__main__':
             
             for i, color in enumerate(color_map):
                 for j in range(3):
-                    sv_img[:,:,j][pred==i] = color_map[i][j]
-            sv_img = Image.fromarray(sv_img)
+                    sv_img[:,:,j][pred==i] = color_map[i][j]    
+                    #if i in [2,5,6,7,8]:
+                    #    sv_img[:,:,j][pred==i] = 255 
+                    #    sv_img[:3*sv_img.shape[0]//10,:sv_img.shape[1],j] = 255
             
+            #cv2.rectangle(sv_img,(0,0),(sv_img.shape[1],3*sv_img.shape[0]//10),255,-1)
+            sv_img = Image.fromarray(sv_img)
+            end = time()
+            print("Inference time: {:10.4f} ms".format((end-start)*1000.0))
+
             if not os.path.exists(sv_path):
                 os.mkdir(sv_path)
-            sv_img.save(sv_path+img_name)
+            sv_img.save(sv_path + img_name)
             
             
             
